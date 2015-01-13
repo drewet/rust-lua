@@ -4,8 +4,7 @@ use Type;
 use raw;
 
 use libc;
-use std::task;
-use std::any::AnyRefExt;
+use std::thread::Thread;
 
 #[test]
 fn test_state_init() {
@@ -22,10 +21,10 @@ fn test_error() {
 
 #[test]
 fn test_errorstr() {
-    let res = task::try::<()>(proc() {
+    let res = Thread::scoped::<(), _>(move || {
         let mut s = State::new();
         s.errorstr("some err");
-    });
+    }).join();
     let err = res.unwrap_err();
     let expected = "unprotected error in call to Lua API (some err)";
     let s = err.downcast_ref::<String>();
@@ -36,7 +35,7 @@ fn test_errorstr() {
         if s.is_some() {
             assert_eq!(*s.unwrap(), expected);
         } else {
-            fail!("unexpected failure result");
+            panic!("unexpected failure result");
         }
     }
 }
@@ -71,36 +70,38 @@ fn test_openlibs() {
     assert_eq!(s.type_(-1), Some(Type::Table));
 }
 
-#[deriving(PartialEq,Eq,Show)]
+#[derive(Copy,PartialEq,Eq,Show)]
 enum CheckOptionEnum {
-    COEOne,
-    COETwo,
-    COEThree
+    One,
+    Two,
+    Three
 }
 
 #[test]
 fn test_checkoption() {
-    let lst = [("one", COEOne), ("two", COETwo), ("three", COEThree)];
+    let lst = [("one", CheckOptionEnum::One),
+               ("two", CheckOptionEnum::Two),
+               ("three", CheckOptionEnum::Three)];
 
     let mut s = State::new();
 
     for &(k,ref v) in lst.iter() {
         s.pushstring(k);
-        assert_eq!(*s.checkoption(1, None, lst), *v);
+        assert_eq!(*s.checkoption(1, None, &lst), *v);
         s.pop(1);
     }
-    assert_eq!(*s.checkoption(1, Some("three"), lst), COEThree);
+    assert_eq!(*s.checkoption(1, Some("three"), &lst), CheckOptionEnum::Three);
 
-    let res = task::try(proc() {
+    let res = Thread::scoped(move || {
         let mut s = State::new();
-        s.checkoption(1, None, lst);
-    });
+        s.checkoption(1, None, &lst);
+    }).join();
     assert!(res.is_err(), "expected error from checkoption");
 
-    let res = task::try(proc() {
+    let res = Thread::scoped(move || {
         let mut s = State::new();
-        s.checkoption(1, Some("four"), lst);
-    });
+        s.checkoption(1, Some("four"), &lst);
+    }).join();
     assert!(res.is_err(), "expected error from checkoption");
 }
 

@@ -1,13 +1,12 @@
-#![feature(phase)]
+#![allow(non_snake_case,unstable)]
 
-#![allow(non_snake_case)]
-
-#[phase(plugin,link)]
+#[macro_use]
 extern crate lua;
 extern crate libc;
 
 use std::io;
 use std::io::BufferedReader;
+use std::num::Float;
 
 pub fn repl(L: &mut lua::State) {
     let mut stdin = BufferedReader::new(io::stdin());
@@ -26,7 +25,7 @@ pub fn repl(L: &mut lua::State) {
         }
         match L.loadbuffer(line.as_slice(), "=stdin") {
             Ok(_) => (),
-            Err(err) => { let _ = writeln!(stderr, "{}", err); continue; }
+            Err(err) => { let _ = writeln!(stderr, "{:?}", err); continue; }
         }
         match L.pcall(0, lua::MULTRET, 0) {
             Ok(_) => (),

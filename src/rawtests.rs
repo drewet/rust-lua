@@ -1,5 +1,6 @@
 use libc;
 use std::ptr;
+use std::ffi::CString;
 use raw;
 use aux;
 
@@ -17,9 +18,9 @@ extern "C" fn alloc_helper(_ud: *mut libc::c_void, ptr: *mut libc::c_void, _osiz
     }
 }
 
-// panic function should fail!() so Lua doesn't abort
+// panic function should panic!() so Lua doesn't abort
 extern "C" fn panic_helper(_L: *mut raw::lua_State) -> libc::c_int {
-    fail!("lua error");
+    panic!("lua error");
 }
 
 #[test]
@@ -59,9 +60,9 @@ fn test_dostring() {
         let L = aux::raw::luaL_newstate();
         raw::lua_atpanic(L, panic_helper);
         let s = "function foo(x,y) return x+y end";
-        let ret = s.with_c_str(|s| aux::raw::luaL_dostring(L, s));
+        let ret = aux::raw::luaL_dostring(L, CString::from_slice(s.as_bytes()).as_ptr());
         assert_eq!(ret, 0);
-        "foo".with_c_str(|s| raw::lua_getglobal(L, s));
+        raw::lua_getglobal(L, CString::from_slice(b"foo").as_ptr());
 
         raw::lua_pushinteger(L, 5);
         raw::lua_pushinteger(L, 3);

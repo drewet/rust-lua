@@ -15,15 +15,16 @@ pub mod raw {
     // Don't define luaL_openlib either. That's also obsolete.
 
     // Extra error code for `luaL_load`
-    pub static LUA_ERRFILE: c_int = LUA_ERRERR+1;
+    pub const LUA_ERRFILE: c_int = LUA_ERRERR+1;
 
-    pub static LUAL_BUFFERSIZE: libc::size_t = config::LUAL_BUFFERSIZE;
+    pub const LUAL_BUFFERSIZE: libc::size_t = config::LUAL_BUFFERSIZE;
 
-    pub static LUA_NOREF: c_int = -2;
-    pub static LUA_REFNIL: c_int = -1;
+    pub const LUA_NOREF: c_int = -2;
+    pub const LUA_REFNIL: c_int = -1;
 
     #[allow(non_camel_case_types)]
     #[repr(C)]
+    #[allow(missing_copy_implementations)]
     pub struct luaL_Reg {
         pub name: *const libc::c_char,
         pub func: Option<lua_CFunction>
@@ -132,7 +133,9 @@ pub mod raw {
     }
 
     #[inline(always)]
-    pub unsafe fn luaL_opt<T>(L: *mut lua_State, f: |*mut lua_State, c_int| -> T, n: c_int, d: T) -> T {
+    pub unsafe fn luaL_opt<T, F>(L: *mut lua_State, f: F, n: c_int, d: T) -> T
+        where F: FnOnce(*mut lua_State, c_int) -> T
+    {
         if raw::lua_isnoneornil(L, n) {
             d
         } else {
@@ -142,19 +145,19 @@ pub mod raw {
 
     // Generic Buffer manipulation
 
-    #[allow(non_camel_case_types)]
+    #[allow(non_camel_case_types,missing_copy_implementations)]
     #[repr(C)]
     pub struct luaL_Buffer {
         pub p: *mut libc::c_char, // current position in buffer
         pub lvl: c_int, // number of strings in the stack (level)
         pub L: *mut lua_State,
-        pub buffer: [libc::c_char, ..LUAL_BUFFERSIZE as uint]
+        pub buffer: [libc::c_char; LUAL_BUFFERSIZE as usize]
     }
 
     #[inline(always)]
     pub unsafe fn luaL_addchar(B: *mut luaL_Buffer, c: libc::c_char) {
         let startp: *mut libc::c_char = &mut (*B).buffer[0];
-        if (*B).p >= startp.offset(LUAL_BUFFERSIZE as int) {
+        if (*B).p >= startp.offset(LUAL_BUFFERSIZE as isize) {
             luaL_prepbuffer(B);
         }
         *(*B).p = c;
@@ -165,7 +168,7 @@ pub mod raw {
 
     #[inline(always)]
     pub unsafe fn luaL_addsize(B: *mut luaL_Buffer, n: libc::size_t) {
-        (*B).p = (*B).p.offset(n as int);
+        (*B).p = (*B).p.offset(n as isize);
     }
 
     extern {
